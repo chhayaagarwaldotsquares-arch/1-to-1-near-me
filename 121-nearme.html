@@ -1,0 +1,3117 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>121 Near Me | London Local Services</title>
+  <meta name="description" content="Find trusted van hire, removals, cleaning, plumbing, electrical and taxi services in London. London-first MVP for local service discovery." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root {
+      --bg: #f6f8ff;
+      --bg-2: #ffffff;
+      --surface: rgba(255,255,255,0.92);
+      --surface-strong: rgba(255,255,255,0.98);
+
+      --line: rgba(99, 102, 241, 0.12);
+      --line-2: rgba(99, 102, 241, 0.07);
+
+      --text: #182134;
+      --muted: #667085;
+      --muted-2: #475467;
+
+      --primary: #4f46e5;
+      --primary-soft: #7c3aed;
+      --accent: #06b6d4;
+      --accent-soft: #dbeafe;
+      --highlight: #f59e0b;
+
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+
+      --shadow: 0 20px 60px rgba(79, 70, 229, 0.10);
+      --shadow-soft: 0 10px 30px rgba(79, 70, 229, 0.07);
+
+      --radius-xl: 30px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+
+      --container: 1280px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(79,70,229,0.12), transparent 24%),
+        radial-gradient(circle at top right, rgba(6,182,212,0.10), transparent 22%),
+        linear-gradient(180deg, #f8faff 0%, #eef4ff 100%);
+    }
+
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+
+    .container {
+      width: min(var(--container), calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .blur-orb {
+      position: fixed;
+      z-index: -1;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+    }
+    .orb-1 { width: 340px; height: 340px; left: -80px; top: -40px; background: rgba(79,70,229,0.16); }
+    .orb-2 { width: 360px; height: 360px; right: -90px; top: 100px; background: rgba(6,182,212,0.14); }
+    .orb-3 { width: 300px; height: 300px; left: 38%; bottom: -50px; background: rgba(124,58,237,0.12); }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255,255,255,0.78);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 10px 30px rgba(79,70,229,0.05);
+    }
+
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4);
+      box-shadow: 0 14px 34px rgba(79,70,229,0.22);
+    }
+
+    .brand-text strong {
+      display: block;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    .brand-text span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--muted-2);
+      font-size: 14px;
+      font-weight: 500;
+      transition: 0.25s ease;
+    }
+
+    .nav-links a:hover { color: var(--primary); }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .mobile-toggle {
+      display: none;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .mobile-menu {
+      display: none;
+      padding: 0 0 18px;
+    }
+
+    .mobile-menu.open { display: block; }
+
+    .mobile-menu a {
+      display: block;
+      margin-bottom: 10px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      padding: 14px 16px;
+      color: var(--muted-2);
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 16px;
+      padding: 14px 20px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: 0.25s ease;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4);
+      box-shadow: 0 14px 30px rgba(79,70,229,0.20);
+    }
+
+    .btn-outline {
+      border-color: rgba(79,70,229,0.14);
+      background: rgba(255,255,255,0.94);
+      color: var(--text);
+    }
+
+    .btn-sm {
+      padding: 10px 14px;
+      font-size: 13px;
+      border-radius: 14px;
+    }
+
+    .section { padding: 32px 0; }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow,
+    .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(79,70,229,0.16);
+      background: linear-gradient(90deg, rgba(79,70,229,0.08), rgba(6,182,212,0.08));
+      color: #4338ca;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .section-title h2,
+    .hero-copy h1 {
+      margin: 0;
+      letter-spacing: -0.05em;
+    }
+
+    .section-title h2 { font-size: clamp(30px, 4vw, 46px); }
+
+    .section-title p,
+    .muted {
+      color: var(--muted);
+      line-height: 1.85;
+    }
+
+    .hero { padding: 46px 0 84px; }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.02fr 0.98fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .hero-copy h1 {
+      font-size: clamp(44px, 6vw, 76px);
+      line-height: 1.02;
+      margin-top: 18px;
+      max-width: 760px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, #4f46e5, #7c3aed, #06b6d4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-copy p {
+      color: var(--muted-2);
+      font-size: 18px;
+      line-height: 1.9;
+      max-width: 720px;
+      margin: 22px 0 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .stat-card,
+    .glass-card,
+    .service-card,
+    .value-card,
+    .pricing-card,
+    .business-card,
+    .step-card,
+    .faq-item,
+    .area-card,
+    .map-card,
+    .featured-banner {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.90);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .stat-card {
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(239,244,255,0.95));
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+      color: var(--text);
+    }
+
+    .stat-card span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+
+    .glass-card {
+      padding: 24px;
+      background: rgba(255,255,255,0.94);
+    }
+
+    .search-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .search-tab {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.90);
+      color: var(--muted-2);
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.2s ease;
+    }
+
+    .search-tab.active {
+      border-color: transparent;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+    }
+
+    .search-panel { display: none; }
+    .search-panel.active { display: block; }
+
+    .search-panel h3 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .search-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.85fr auto;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .input,
+    .select,
+    .filter-select,
+    .contact-input,
+    .contact-textarea {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.96);
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input,
+    .select,
+    .filter-select,
+    .contact-input {
+      height: 56px;
+      padding: 0 16px;
+    }
+
+    .input::placeholder,
+    .contact-input::placeholder,
+    .contact-textarea::placeholder {
+      color: #98a2b3;
+    }
+
+    .select option,
+    .filter-select option {
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .input:focus,
+    .select:focus,
+    .filter-select:focus,
+    .contact-input:focus,
+    .contact-textarea:focus {
+      border-color: rgba(79,70,229,0.45);
+      box-shadow: 0 0 0 4px rgba(79,70,229,0.10);
+    }
+
+    .chip-row,
+    .filter-tags,
+    .trust-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip,
+    .tag,
+    .mini-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.90);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chip {
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .chip:hover,
+    .chip.active {
+      background: linear-gradient(90deg, rgba(79,70,229,0.10), rgba(6,182,212,0.10));
+      border-color: rgba(79,70,229,0.20);
+      color: #4338ca;
+    }
+
+    .mini-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .mini-note {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .mini-note h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .mini-note p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .categories-grid,
+    .services-grid,
+    .areas-grid,
+    .values-grid,
+    .pricing-grid,
+    .business-grid,
+    .steps-grid,
+    .faq-grid,
+    .contact-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .categories-grid { grid-template-columns: repeat(5, 1fr); }
+    .services-grid { grid-template-columns: repeat(3, 1fr); }
+    .areas-grid { grid-template-columns: repeat(4, 1fr); }
+    .values-grid { grid-template-columns: repeat(4, 1fr); }
+    .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+    .business-grid { grid-template-columns: repeat(2, 1fr); }
+    .steps-grid { grid-template-columns: repeat(3, 1fr); }
+    .faq-grid { grid-template-columns: 1fr; }
+    .contact-grid { grid-template-columns: 0.9fr 1.1fr; }
+
+    .service-card,
+    .value-card,
+    .pricing-card,
+    .business-card,
+    .step-card,
+    .area-card {
+      overflow: hidden;
+      transition: 0.28s ease;
+    }
+
+    .service-card:hover,
+    .value-card:hover,
+    .pricing-card:hover,
+    .business-card:hover,
+    .step-card:hover,
+    .area-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .category-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.92);
+      cursor: pointer;
+      transition: 0.25s ease;
+      box-shadow: 0 8px 22px rgba(79,70,229,0.04);
+    }
+
+    .category-card:hover,
+    .category-card.active {
+      transform: translateY(-4px);
+      border-color: rgba(79,70,229,0.22);
+      background: linear-gradient(180deg, rgba(255,255,255,1), rgba(238,244,255,0.95));
+      box-shadow: 0 16px 30px rgba(79,70,229,0.10);
+    }
+
+    .icon-box {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(79,70,229,0.14), rgba(6,182,212,0.12));
+      margin-bottom: 18px;
+      font-size: 24px;
+    }
+
+    .category-card h3,
+    .value-card h3,
+    .pricing-card h3,
+    .area-card h3,
+    .step-card h3,
+    .mini-note h3,
+    .business-card h3 {
+      margin: 0;
+    }
+
+    .category-card p,
+    .value-card p,
+    .pricing-card p,
+    .area-card p,
+    .step-card p,
+    .business-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .filters-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .results-count {
+      color: var(--muted);
+      font-size: 14px;
+      margin-left: auto;
+    }
+
+    .service-card-image {
+      position: relative;
+      height: 240px;
+      overflow: hidden;
+    }
+
+    .service-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .service-card:hover .service-card-image img { transform: scale(1.05); }
+
+    .service-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(79,70,229,0.04), rgba(24,33,52,0.78));
+    }
+
+    .service-badges {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: start;
+      z-index: 2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(8px);
+      color: #fff;
+    }
+
+    .badge.featured { color: #fef3c7; }
+
+
+    .verified-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      flex: 0 0 14px;
+      vertical-align: middle;
+    }
+
+    .verified-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .badge.verified {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(37,99,235,0.92), rgba(59,130,246,0.82));
+      border: 1px solid rgba(255,255,255,0.24);
+      box-shadow: 0 12px 24px rgba(59,130,246,0.28);
+      padding: 9px 14px;
+    }
+
+    .badge.verified span:last-child {
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .badge.verified .verified-icon {
+      width: 18px;
+      height: 18px;
+      filter: drop-shadow(0 2px 8px rgba(37,99,235,0.35));
+    }
+
+    .tag.verified-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .service-head {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+    }
+
+    .service-head small {
+      display: block;
+      margin-bottom: 8px;
+      color: #c4b5fd;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+    }
+
+    .service-head h3 {
+      font-size: 24px;
+      margin: 0;
+      line-height: 1.1;
+      color: #fff;
+    }
+
+    .rating-pill {
+      white-space: nowrap;
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.16);
+      backdrop-filter: blur(8px);
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+    }
+
+    .service-body {
+      padding: 22px;
+      background: rgba(255,255,255,0.96);
+    }
+
+    .meta-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted-2);
+      font-size: 14px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .service-actions .btn {
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .hidden { display: none !important; }
+
+        .map-card { overflow: hidden; }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+      min-height: 620px;
+      align-items: stretch;
+    }
+
+    .map-sidebar {
+      padding: 26px;
+      border-right: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,255,0.96));
+      overflow-y: auto;
+    }
+
+    .map-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .map-list-item {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.98);
+      cursor: pointer;
+      transition: 0.22s ease;
+      box-shadow: 0 10px 24px rgba(79,70,229,0.05);
+    }
+
+    .map-list-item:hover,
+    .map-list-item.active {
+      border-color: rgba(79,70,229,0.28);
+      background: linear-gradient(180deg, rgba(255,255,255,1), rgba(238,244,255,0.98));
+      transform: translateY(-2px);
+    }
+
+    .map-list-item h4 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .map-list-item p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .leaflet-map-wrap {
+      position: relative;
+      min-height: 620px;
+      background: #e8eef6;
+    }
+
+    #leafletMap {
+      width: 100%;
+      min-height: 620px;
+      height: 100%;
+    }
+
+    .leaflet-container {
+      font-family: 'Inter', sans-serif;
+      background: #dce7f2;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 22px;
+      padding: 0;
+      box-shadow: 0 24px 50px rgba(24,33,52,0.16);
+      overflow: hidden;
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      width: 320px !important;
+    }
+
+    .leaflet-popup-tip {
+      box-shadow: 0 10px 22px rgba(24,33,52,0.12);
+    }
+
+    .map-popup-card {
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .map-popup-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .map-popup-body {
+      padding: 18px;
+    }
+
+    .map-popup-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .map-popup-top h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .map-popup-rating {
+      white-space: nowrap;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(79,70,229,0.10), rgba(6,182,212,0.12));
+      color: #4338ca;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .map-popup-line {
+      margin: 0 0 8px;
+      color: var(--muted-2);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .map-popup-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .map-popup-tags .tag {
+      padding: 8px 12px;
+      font-size: 11px;
+    }
+
+    .map-popup-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .map-popup-actions .btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 11px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+    }
+
+    .custom-map-marker {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #4f46e5;
+      border: 3px solid #ffffff;
+      box-shadow: 0 10px 24px rgba(79,70,229,0.30);
+    }
+
+    .custom-map-marker.active {
+      background: #06b6d4;
+      transform: scale(1.08);
+      box-shadow: 0 12px 28px rgba(6,182,212,0.34);
+    }
+
+.featured-banner {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.90);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .stat-card {
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(239,244,255,0.95));
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+      color: var(--text);
+    }
+
+    .stat-card span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+
+    .glass-card {
+      padding: 24px;
+      background: rgba(255,255,255,0.94);
+    }
+
+    .search-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .search-tab {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.90);
+      color: var(--muted-2);
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.2s ease;
+    }
+
+    .search-tab.active {
+      border-color: transparent;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+    }
+
+    .search-panel { display: none; }
+    .search-panel.active { display: block; }
+
+    .search-panel h3 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .search-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.85fr auto;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .input,
+    .select,
+    .filter-select,
+    .contact-input,
+    .contact-textarea {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.96);
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input,
+    .select,
+    .filter-select,
+    .contact-input {
+      height: 56px;
+      padding: 0 16px;
+    }
+
+    .input::placeholder,
+    .contact-input::placeholder,
+    .contact-textarea::placeholder {
+      color: #98a2b3;
+    }
+
+    .select option,
+    .filter-select option {
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .input:focus,
+    .select:focus,
+    .filter-select:focus,
+    .contact-input:focus,
+    .contact-textarea:focus {
+      border-color: rgba(79,70,229,0.45);
+      box-shadow: 0 0 0 4px rgba(79,70,229,0.10);
+    }
+
+    .chip-row,
+    .filter-tags,
+    .trust-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip,
+    .tag,
+    .mini-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.90);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chip {
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .chip:hover,
+    .chip.active {
+      background: linear-gradient(90deg, rgba(79,70,229,0.10), rgba(6,182,212,0.10));
+      border-color: rgba(79,70,229,0.20);
+      color: #4338ca;
+    }
+
+    .mini-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .mini-note {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .mini-note h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .mini-note p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .categories-grid,
+    .services-grid,
+    .areas-grid,
+    .values-grid,
+    .pricing-grid,
+    .business-grid,
+    .steps-grid,
+    .faq-grid,
+    .contact-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .categories-grid { grid-template-columns: repeat(5, 1fr); }
+    .services-grid { grid-template-columns: repeat(3, 1fr); }
+    .areas-grid { grid-template-columns: repeat(4, 1fr); }
+    .values-grid { grid-template-columns: repeat(4, 1fr); }
+    .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+    .business-grid { grid-template-columns: repeat(2, 1fr); }
+    .steps-grid { grid-template-columns: repeat(3, 1fr); }
+    .faq-grid { grid-template-columns: 1fr; }
+    .contact-grid { grid-template-columns: 0.9fr 1.1fr; }
+
+    .service-card,
+    .value-card,
+    .pricing-card,
+    .business-card,
+    .step-card,
+    .area-card {
+      overflow: hidden;
+      transition: 0.28s ease;
+    }
+
+    .service-card:hover,
+    .value-card:hover,
+    .pricing-card:hover,
+    .business-card:hover,
+    .step-card:hover,
+    .area-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .category-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.92);
+      cursor: pointer;
+      transition: 0.25s ease;
+      box-shadow: 0 8px 22px rgba(79,70,229,0.04);
+    }
+
+    .category-card:hover,
+    .category-card.active {
+      transform: translateY(-4px);
+      border-color: rgba(79,70,229,0.22);
+      background: linear-gradient(180deg, rgba(255,255,255,1), rgba(238,244,255,0.95));
+      box-shadow: 0 16px 30px rgba(79,70,229,0.10);
+    }
+
+    .icon-box {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(79,70,229,0.14), rgba(6,182,212,0.12));
+      margin-bottom: 18px;
+      font-size: 24px;
+    }
+
+    .category-card h3,
+    .value-card h3,
+    .pricing-card h3,
+    .area-card h3,
+    .step-card h3,
+    .mini-note h3,
+    .business-card h3 {
+      margin: 0;
+    }
+
+    .category-card p,
+    .value-card p,
+    .pricing-card p,
+    .area-card p,
+    .step-card p,
+    .business-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .filters-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .results-count {
+      color: var(--muted);
+      font-size: 14px;
+      margin-left: auto;
+    }
+
+    .service-card-image {
+      position: relative;
+      height: 240px;
+      overflow: hidden;
+    }
+
+    .service-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .service-card:hover .service-card-image img { transform: scale(1.05); }
+
+    .service-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(79,70,229,0.04), rgba(24,33,52,0.78));
+    }
+
+    .service-badges {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: start;
+      z-index: 2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(8px);
+      color: #fff;
+    }
+
+    .badge.featured { color: #fef3c7; }
+
+
+    .verified-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      flex: 0 0 14px;
+      vertical-align: middle;
+    }
+
+    .verified-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .badge.verified {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(37,99,235,0.92), rgba(59,130,246,0.82));
+      border: 1px solid rgba(255,255,255,0.24);
+      box-shadow: 0 12px 24px rgba(59,130,246,0.28);
+      padding: 9px 14px;
+    }
+
+    .badge.verified span:last-child {
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .badge.verified .verified-icon {
+      width: 18px;
+      height: 18px;
+      filter: drop-shadow(0 2px 8px rgba(37,99,235,0.35));
+    }
+
+    .tag.verified-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .service-head {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+    }
+
+    .service-head small {
+      display: block;
+      margin-bottom: 8px;
+      color: #c4b5fd;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+    }
+
+    .service-head h3 {
+      font-size: 24px;
+      margin: 0;
+      line-height: 1.1;
+      color: #fff;
+    }
+
+    .rating-pill {
+      white-space: nowrap;
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.16);
+      backdrop-filter: blur(8px);
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+    }
+
+    .service-body {
+      padding: 22px;
+      background: rgba(255,255,255,0.96);
+    }
+
+    .meta-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted-2);
+      font-size: 14px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .service-actions .btn {
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .hidden { display: none !important; }
+
+    .map-card { overflow: hidden; }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+      min-height: 620px;
+      align-items: stretch;
+    }
+
+    .map-sidebar {
+      padding: 26px;
+      border-right: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,248,255,0.92));
+      overflow-y: auto;
+    }
+
+    .map-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .map-list-item {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.96);
+      cursor: pointer;
+      transition: 0.22s ease;
+      box-shadow: 0 10px 24px rgba(79,70,229,0.05);
+    }
+
+    .map-list-item:hover,
+    .map-list-item.active {
+      border-color: rgba(79,70,229,0.28);
+      background: linear-gradient(180deg, rgba(255,255,255,1), rgba(238,244,255,0.98));
+      transform: translateY(-2px);
+    }
+
+    .map-list-item h4 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+
+    .map-list-item p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .map-stage {
+      position: relative;
+      min-height: 620px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+    }
+
+    .map-stage::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 22% 20%, rgba(79,70,229,0.10), transparent 22%),
+        radial-gradient(circle at 78% 72%, rgba(6,182,212,0.10), transparent 22%),
+        linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0));
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .map-stage::after {
+      content: '';
+      position: absolute;
+      inset: 18px;
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.55);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .map-svg-wrap {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .map-svg-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .map-area-label {
+      position: absolute;
+      z-index: 2;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(79,70,229,0.10);
+      color: #475467;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 22px rgba(24,33,52,0.06);
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+    }
+
+    .map-area-label.central {
+      color: #312e81;
+      background: rgba(255,255,255,0.94);
+    }
+
+    .map-stage-head {
+      position: absolute;
+      top: 20px;
+      left: 22px;
+      right: 22px;
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+
+    .map-stage-badge,
+    .map-stage-caption {
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(79,70,229,0.10);
+      box-shadow: 0 14px 30px rgba(24,33,52,0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .map-stage-badge strong,
+    .map-stage-caption strong {
+      display: block;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .map-stage-badge span,
+    .map-stage-caption span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      display: block;
+    }
+
+    .map-pin {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 48px;
+      height: 48px;
+      padding: 0 14px;
+      border-radius: 18px 18px 18px 4px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4);
+      color: #fff;
+      font-weight: 800;
+      box-shadow: 0 18px 38px rgba(79,70,229,0.22);
+      cursor: pointer;
+      transition: 0.22s ease;
+      border: 3px solid rgba(255,255,255,0.92);
+      z-index: 4;
+    }
+
+    .map-pin::after {
+      content: '';
+      position: absolute;
+      left: 14px;
+      bottom: -10px;
+      width: 16px;
+      height: 16px;
+      background: inherit;
+      transform: rotate(45deg);
+      border-bottom: 3px solid rgba(255,255,255,0.92);
+      border-right: 3px solid rgba(255,255,255,0.92);
+      border-radius: 2px;
+      z-index: -1;
+    }
+
+    .map-pin span {
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+
+    .map-pin:hover,
+    .map-pin.active {
+      transform: translate(-50%, -100%) scale(1.08);
+      box-shadow: 0 22px 48px rgba(79,70,229,0.28);
+    }
+
+    .map-pin.active {
+      background: linear-gradient(135deg, #312e81, #4f46e5, #0ea5e9);
+    }
+
+    .map-tooltip {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      width: min(360px, calc(100% - 36px));
+      padding: 20px;
+      border-radius: 24px;
+      border: 1px solid rgba(79,70,229,0.14);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 50px rgba(24,33,52,0.12);
+      z-index: 5;
+    }
+
+    .map-tooltip h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .map-tooltip .meta-line {
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .map-tooltip-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .map-tooltip-actions .btn {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .featured-banner {
+      padding: 28px;
+      background: linear-gradient(90deg, rgba(79,70,229,0.08), rgba(124,58,237,0.06), rgba(6,182,212,0.10));
+    }
+
+    .featured-banner-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .value-card,
+    .pricing-card,
+    .business-card,
+    .step-card,
+    .area-card { padding: 24px; }
+
+    .pricing-card {
+      padding: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(240,245,255,0.95));
+    }
+
+    .price {
+      font-size: 40px;
+      letter-spacing: -0.05em;
+      margin: 16px 0 10px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .price small {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .price-list {
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      color: var(--muted-2);
+    }
+
+    .price-list li::before {
+      content: '✓';
+      color: #22c55e;
+      margin-right: 10px;
+      font-weight: 800;
+    }
+
+    .pricing-card.highlight {
+      border-color: rgba(79,70,229,0.18);
+      background: linear-gradient(180deg, rgba(255,255,255,1), rgba(236,242,255,0.98));
+      box-shadow: 0 22px 50px rgba(79,70,229,0.12);
+    }
+
+    .step-number {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(79,70,229,0.14), rgba(6,182,212,0.12));
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .business-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .business-rating {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(79,70,229,0.16);
+      background: linear-gradient(90deg, rgba(79,70,229,0.08), rgba(6,182,212,0.08));
+      color: #4338ca;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .faq-item { padding: 22px; }
+
+    .faq-question {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .faq-question h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .faq-answer {
+      display: none;
+      color: var(--muted-2);
+      line-height: 1.8;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line-2);
+    }
+
+    .faq-item.open .faq-answer { display: block; }
+
+    .contact-form {
+      padding: 24px;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .contact-form h3,
+    .contact-note h3 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .contact-note {
+      padding: 26px;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      box-shadow: var(--shadow-soft);
+      height: 100%;
+    }
+
+    .contact-fields {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .contact-textarea {
+      min-height: 120px;
+      padding: 14px 16px;
+      resize: vertical;
+    }
+
+    .success-message {
+      display: none;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(74,222,128,0.10);
+      border: 1px solid rgba(74,222,128,0.2);
+      color: #166534;
+      font-size: 14px;
+    }
+
+    .success-message.show { display: block; }
+
+    footer {
+      margin-top: 28px;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.78);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1fr;
+      gap: 22px;
+      padding: 40px 0;
+    }
+
+    .footer-grid h4 {
+      margin: 0 0 14px;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .footer-grid p,
+    .footer-grid a {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1200px) {
+      .hero-grid,
+      .featured-banner-grid,
+      .map-layout,
+      .contact-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .categories-grid { grid-template-columns: repeat(3, 1fr); }
+      .services-grid,
+      .values-grid,
+      .pricing-grid,
+      .steps-grid,
+      .footer-grid,
+      .areas-grid,
+      .business-grid,
+      .mini-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .nav-links,
+      .nav-actions { display: none; }
+      .mobile-toggle { display: inline-grid; place-items: center; }
+      .search-grid,
+      .hero-stats,
+      .categories-grid,
+      .services-grid,
+      .areas-grid,
+      .values-grid,
+      .pricing-grid,
+      .steps-grid,
+      .footer-grid,
+      .business-grid,
+      .mini-grid,
+      .contact-grid {
+        grid-template-columns: 1fr;
+      }
+      .map-stage { min-height: 500px; }
+      .map-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 560px) {
+      .container { width: min(var(--container), calc(100% - 20px)); }
+      .hero { padding-top: 24px; }
+      .hero-copy h1 { font-size: 35px; }
+      .btn { width: 100%; }
+      .service-actions .btn { width: 100%; }
+      .results-count { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="blur-orb orb-1"></div>
+  <div class="blur-orb orb-2"></div>
+  <div class="blur-orb orb-3"></div>
+
+  <header>
+    <div class="container navbar">
+      <a href="#home" class="brand">
+        <div class="brand-mark">121</div>
+        <div class="brand-text">
+          <strong>121 Near Me</strong>
+          <span>London Local Services MVP</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#categories">Categories</a>
+        <a href="#featured-services">Featured Services</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#pricing">For Businesses</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="#pricing" class="btn btn-outline btn-sm">List Your Business</a>
+        <a href="#featured-services" class="btn btn-primary btn-sm">Find a Service</a>
+      </div>
+
+      <button class="mobile-toggle" id="mobileToggle">☰</button>
+    </div>
+
+    <div class="container mobile-menu" id="mobileMenu">
+      <a href="#categories">Categories</a>
+      <a href="#featured-services">Featured Services</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#pricing">For Businesses</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </header>
+
+  <main id="home">
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">London-first • niche local services • scalable MVP</span>
+          <h1>Find trusted <span class="gradient-text">same-day local services</span> in London.</h1>
+          <p>
+            A cleaner, Airbnb-inspired local services platform focused on London only. Search van hire,
+            removals, cleaning, plumbing, electrical and taxi services with a simple, conversion-ready experience.
+          </p>
+
+          <div class="hero-actions">
+            <a href="#featured-services" class="btn btn-primary">Search Services</a>
+            <a href="#pricing" class="btn btn-outline">Add Your Business</a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat-card">
+              <strong>London</strong>
+              <span>Single-city MVP launch</span>
+            </div>
+            <div class="stat-card">
+              <strong>6 Core</strong>
+              <span>High-demand service categories</span>
+            </div>
+            <div class="stat-card">
+              <strong>Lead-Ready</strong>
+              <span>Call, quote and featured listing model</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-side">
+          <div class="glass-card">
+            <div class="search-tabs">
+              <button class="search-tab active" data-panel="search-services">Services</button>
+              <button class="search-tab" data-panel="search-areas">Areas</button>
+              <button class="search-tab" data-panel="search-business">Business Sign-up</button>
+            </div>
+
+            <div class="search-panel active" id="search-services">
+              <h3>Search local services in London</h3>
+              <div class="search-grid">
+                <input class="input" id="keywordInput" type="text" placeholder="Try ‘Plumber in London’ or ‘Van hire near me’" />
+                <select class="select" id="locationInput">
+                  <option value="London">London</option>
+                  <option value="Central London">Central London</option>
+                  <option value="North London">North London</option>
+                  <option value="South London">South London</option>
+                  <option value="East London">East London</option>
+                  <option value="West London">West London</option>
+                </select>
+                <button class="btn btn-primary" id="heroSearchBtn">Search</button>
+              </div>
+              <div class="chip-row" style="margin-top: 16px;">
+                <span class="chip" data-chip="Van Hire">Van Hire</span>
+                <span class="chip" data-chip="Removals">Removals</span>
+                <span class="chip" data-chip="Cleaning">Cleaning</span>
+                <span class="chip" data-chip="Plumbing">Plumbing</span>
+                <span class="chip" data-chip="Electrical">Electrical</span>
+                <span class="chip" data-chip="Taxi / Transport">Taxi / Transport</span>
+              </div>
+            </div>
+
+            <div class="search-panel" id="search-areas">
+              <h3>Popular areas in London</h3>
+              <div class="chip-row" style="margin-top: 18px;">
+                <span class="chip area-chip" data-area="Central London">Central London</span>
+                <span class="chip area-chip" data-area="Canary Wharf">Canary Wharf</span>
+                <span class="chip area-chip" data-area="Wembley">Wembley</span>
+                <span class="chip area-chip" data-area="Croydon">Croydon</span>
+                <span class="chip area-chip" data-area="Stratford">Stratford</span>
+                <span class="chip area-chip" data-area="Camden">Camden</span>
+              </div>
+              <p class="muted" style="margin-top: 18px;">
+                Launch London first, validate demand, then expand to other UK cities once the model is working.
+              </p>
+            </div>
+
+            <div class="search-panel" id="search-business">
+              <h3>Get listed from launch</h3>
+              <p class="muted" style="margin-top: 14px;">
+                Add your business early for better category visibility, stronger local discovery and more inbound leads.
+              </p>
+              <div class="hero-actions" style="margin-top: 18px;">
+                <a href="#pricing" class="btn btn-primary">View Listing Plans</a>
+                <a href="#contact" class="btn btn-outline">Request Callback</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini-note">
+              <span class="label">MVP Focus</span>
+              <h3>Not a broad marketplace</h3>
+              <p>Focused on local service discovery instead of competing directly with large horizontal platforms.</p>
+            </div>
+            <div class="mini-note">
+              <span class="label">Revenue Ready</span>
+              <h3>Built for monetisation</h3>
+              <p>Featured listings, lead generation and ad inventory can be layered in as the platform grows.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="categories">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Core Categories</span>
+            <h2>High-demand London services to launch first</h2>
+            <p>These categories are structured for fast validation, local demand capture and easier niche positioning at MVP stage.</p>
+          </div>
+        </div>
+
+        <div class="categories-grid" id="categoriesGrid">
+          <div class="category-card active" data-category="All">
+            <div class="icon-box">✨</div>
+            <h3>All Services</h3>
+            <p>Browse all London-first categories in one place.</p>
+          </div>
+          <div class="category-card" data-category="Van Hire">
+            <div class="icon-box">🚐</div>
+            <h3>Van Hire</h3>
+            <p>Short notice van booking for moving, pickup and delivery.</p>
+          </div>
+          <div class="category-card" data-category="Removals">
+            <div class="icon-box">📦</div>
+            <h3>Removals</h3>
+            <p>Home, office and same-day removals across London areas.</p>
+          </div>
+          <div class="category-card" data-category="Cleaning">
+            <div class="icon-box">🧼</div>
+            <h3>Cleaning</h3>
+            <p>Domestic, end-of-tenancy and deep cleaning services.</p>
+          </div>
+          <div class="category-card" data-category="Plumbing">
+            <div class="icon-box">🔧</div>
+            <h3>Plumbing</h3>
+            <p>Emergency plumbers and local repair specialists.</p>
+          </div>
+          <div class="category-card" data-category="Electrical">
+            <div class="icon-box">⚡</div>
+            <h3>Electrical</h3>
+            <p>Certified electricians for urgent and routine work.</p>
+          </div>
+          <div class="category-card" data-category="Taxi / Transport">
+            <div class="icon-box">🚖</div>
+            <h3>Taxi / Transport</h3>
+            <p>Airport runs, local travel and private transport providers.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="featured-services">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Featured Listings</span>
+            <h2>Trusted service providers across London</h2>
+          </div>
+          <div class="hero-actions" style="margin-top:0;">
+            <a href="#pricing" class="btn btn-outline btn-sm">Feature Your Listing</a>
+          </div>
+        </div>
+
+        <div class="filters-bar">
+          <select class="filter-select" id="categoryFilter">
+            <option value="All">All Categories</option>
+            <option value="Van Hire">Van Hire</option>
+            <option value="Removals">Removals</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Plumbing">Plumbing</option>
+            <option value="Electrical">Electrical</option>
+            <option value="Taxi / Transport">Taxi / Transport</option>
+          </select>
+
+          <select class="filter-select" id="areaFilter">
+            <option value="All">All London Areas</option>
+            <option value="Central London">Central London</option>
+            <option value="North London">North London</option>
+            <option value="South London">South London</option>
+            <option value="East London">East London</option>
+            <option value="West London">West London</option>
+            <option value="Canary Wharf">Canary Wharf</option>
+            <option value="Wembley">Wembley</option>
+            <option value="Croydon">Croydon</option>
+            <option value="Camden">Camden</option>
+            <option value="Stratford">Stratford</option>
+          </select>
+
+          <select class="filter-select" id="availabilityFilter">
+            <option value="All">Availability</option>
+            <option value="Same Day">Same Day</option>
+            <option value="24/7">24/7</option>
+            <option value="Weekend">Weekend</option>
+          </select>
+
+          <select class="filter-select" id="sortFilter">
+            <option value="featured">Sort: Featured First</option>
+            <option value="rating">Sort: Highest Rated</option>
+            <option value="name">Sort: Name A–Z</option>
+          </select>
+
+          <div class="results-count" id="resultsCount">0 services</div>
+        </div>
+
+        <div class="filter-tags" id="activeTags" style="margin-bottom: 20px;"></div>
+        <div class="services-grid" id="servicesGrid"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="featured-banner">
+          <div class="featured-banner-grid">
+            <div>
+              <span class="label">Strategic Direction</span>
+              <h2 style="font-size: clamp(28px, 4vw, 42px); margin: 16px 0 0; letter-spacing:-0.04em;">Start with one city, one strong demand layer, then scale.</h2>
+              <p class="muted" style="margin-top: 16px;">
+                The platform is intentionally focused on London only for launch. Once the London services model works,
+                you can replicate the same architecture for Manchester, Birmingham, Leeds and other cities.
+              </p>
+            </div>
+            <div class="trust-row">
+              <span class="mini-pill">London-first MVP</span>
+              <span class="mini-pill">Service niche positioning</span>
+              <span class="mini-pill">Lead-gen ready</span>
+              <span class="mini-pill">Multiple city expansion later</span>
+              <span class="mini-pill">Featured listings</span>
+              <span class="mini-pill">Google Ads inventory</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+        <section class="section" id="map-view">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">London Map</span>
+            <h2>Explore providers on a real London map</h2>
+            <p>Use zoom and drag to browse London. Click any pin or listing name to open that provider’s full details.</p>
+          </div>
+        </div>
+
+        <div class="map-card">
+          <div class="map-layout">
+            <div class="map-sidebar">
+              <h3 style="margin:0;font-size:24px;">Providers on map</h3>
+              <p class="muted" style="margin-top:10px;">Select a business name and its popup card will open on the exact London location.</p>
+              <div class="map-list" id="mapList"></div>
+            </div>
+            <div class="leaflet-map-wrap">
+              <div id="leafletMap" aria-label="London service providers map"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="section" id="areas">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">London Coverage</span>
+            <h2>Built to expand borough by borough</h2>
+          </div>
+        </div>
+
+        <div class="areas-grid">
+          <div class="area-card">
+            <div class="icon-box">🏙️</div>
+            <h3>Central London</h3>
+            <p>High intent for removals, cleaners, handymen and rapid-response services.</p>
+          </div>
+          <div class="area-card">
+            <div class="icon-box">🌉</div>
+            <h3>East London</h3>
+            <p>Strong demand for transport, local trades and flexible service providers.</p>
+          </div>
+          <div class="area-card">
+            <div class="icon-box">🏡</div>
+            <h3>South London</h3>
+            <p>Ideal for home-focused categories including plumbing, cleaning and removals.</p>
+          </div>
+          <div class="area-card">
+            <div class="icon-box">🚉</div>
+            <h3>North & West London</h3>
+            <p>Useful for airport transfer, electrician coverage and wider van hire routes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="why-us">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Why This MVP Works</span>
+            <h2>Designed to be simple for users and practical for monetisation</h2>
+          </div>
+        </div>
+
+        <div class="values-grid">
+          <div class="value-card">
+            <div class="icon-box">📍</div>
+            <h3>Location-first search</h3>
+            <p>Users can quickly search by service and area, which improves local discovery and intent matching.</p>
+          </div>
+          <div class="value-card">
+            <div class="icon-box">🛡️</div>
+            <h3>Trust-led listings</h3>
+            <p>Verified badges, ratings and cleaner profile presentation make service providers feel more credible.</p>
+          </div>
+          <div class="value-card">
+            <div class="icon-box">📞</div>
+            <h3>Lead generation ready</h3>
+            <p>Built around actions that matter: call now, get quote, request callback and featured visibility.</p>
+          </div>
+          <div class="value-card">
+            <div class="icon-box">📈</div>
+            <h3>Scalable architecture</h3>
+            <p>The same listing, filtering and city structure can later expand across 50+ UK cities.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how-it-works">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">How It Works</span>
+            <h2>Simple journey for customers and businesses</h2>
+          </div>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-number">01</div>
+            <h3>Search by service</h3>
+            <p>Users enter what they need, such as plumber, van hire or end-of-tenancy cleaning.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-number">02</div>
+            <h3>Filter by area</h3>
+            <p>They browse only London providers and can narrow down by area, availability and category.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-number">03</div>
+            <h3>Take action fast</h3>
+            <p>Customers can call, request a quote or shortlist a provider while businesses capture qualified leads.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="pricing">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Monetisation Model</span>
+            <h2>Simple plans for launch, stronger revenue options later</h2>
+            <p>Start with easy-to-understand listing tiers, then add lead-gen billing, message credits and ad placements.</p>
+          </div>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <span class="label">Starter</span>
+            <h3>Free Listing</h3>
+            <div class="price">£0 <small>/ month</small></div>
+            <p>Best for early onboarding and validating category demand in London.</p>
+            <ul class="price-list">
+              <li>Business name and category</li>
+              <li>Phone and address display</li>
+              <li>Basic search visibility</li>
+              <li>One service area</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-outline">Get Started</a>
+            </div>
+          </div>
+
+          <div class="pricing-card highlight">
+            <span class="label">Most Useful</span>
+            <h3>Featured Listing</h3>
+            <div class="price">£49 <small>/ month</small></div>
+            <p>Ideal for better homepage exposure and more direct enquiry opportunities.</p>
+            <ul class="price-list">
+              <li>Featured placement in category</li>
+              <li>Priority ordering in search</li>
+              <li>Verified highlight badge</li>
+              <li>Quote CTA and callback request</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-primary">Feature My Business</a>
+            </div>
+          </div>
+
+          <div class="pricing-card">
+            <span class="label">Growth</span>
+            <h3>Lead Gen Plus</h3>
+            <div class="price">Custom <small>/ plan</small></div>
+            <p>Designed for scaling providers once demand and lead volume are proven.</p>
+            <ul class="price-list">
+              <li>Multiple London areas</li>
+              <li>Lead tracking support</li>
+              <li>Sponsored placements</li>
+              <li>Google Ads-ready visibility blocks</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-outline">Talk to Sales</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="businesses">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Business Listing Format</span>
+            <h2>What a strong service profile looks like</h2>
+          </div>
+        </div>
+
+        <div class="business-grid">
+          <div class="business-card">
+            <div class="business-head">
+              <div>
+                <h3>ASAP Van London</h3>
+                <p style="margin-top:6px; color:#4338ca;">Van Hire • Same Day • West London</p>
+              </div>
+              <span class="business-rating">★ 4.9</span>
+            </div>
+            <p>Fast same-day van hire and removals for local flats, offices and urgent transport requests.</p>
+            <div class="filter-tags" style="margin-top:16px;">
+              <span class="tag verified-tag">${VERIFIED_TICK_ICON}<span>Verified</span></span>
+              <span class="tag">Call Now</span>
+              <span class="tag">Request Quote</span>
+              <span class="tag">Featured</span>
+            </div>
+          </div>
+
+          <div class="business-card">
+            <div class="business-head">
+              <div>
+                <h3>PrimeFlow Plumbing</h3>
+                <p style="margin-top:6px; color:#4338ca;">Plumbing • 24/7 • Central London</p>
+              </div>
+              <span class="business-rating">★ 4.8</span>
+            </div>
+            <p>Emergency repairs, leak detection and urgent plumbing visits with fast local response.</p>
+            <div class="filter-tags" style="margin-top:16px;">
+              <span class="tag">Open Now</span>
+              <span class="tag">Emergency</span>
+              <span class="tag">Phone Enquiries</span>
+              <span class="tag">Priority Listing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="listing-preview">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Listing Preview</span>
+            <h2>See how your listing will appear on the platform</h2>
+            <p>Whether you want to sell an item or list a business, your profile will be presented in a clean, trust-led and conversion-focused format.</p>
+          </div>
+        </div>
+
+        <div class="business-grid">
+          <div class="business-card">
+            <div class="business-head">
+              <div>
+                <h3>Used Sofa Set</h3>
+                <p style="margin-top:6px; color:#4338ca;">For Sale • Home Furniture • North London</p>
+              </div>
+              <span class="business-rating">£280</span>
+            </div>
+            <p>Modern 3-seater sofa in very good condition. Ideal for flats, apartments and compact living spaces.</p>
+            <div class="filter-tags" style="margin-top:16px;">
+              <span class="tag verified-tag">${VERIFIED_TICK_ICON}<span>Seller Verified</span></span>
+              <span class="tag">Message Seller</span>
+              <span class="tag">Collection Available</span>
+              <span class="tag">Featured</span>
+            </div>
+            <div class="service-actions" style="margin-top:18px;">
+              <button class="btn btn-primary" onclick="alert('Demo action: Viewing Used Sofa Set')">View Details</button>
+              <button class="btn btn-outline" onclick="alert('Demo action: Contact seller')">Contact Seller</button>
+            </div>
+          </div>
+
+          <div class="business-card">
+            <div class="business-head">
+              <div>
+                <h3>BrightSpark Electrical Ltd</h3>
+                <p style="margin-top:6px; color:#4338ca;">Business Listing • Electrical • Central London</p>
+              </div>
+              <span class="business-rating">★ 4.8</span>
+            </div>
+            <p>Certified electricians for installations, repairs and emergency callouts with strong local coverage across London.</p>
+            <div class="filter-tags" style="margin-top:16px;">
+              <span class="tag verified-tag">${VERIFIED_TICK_ICON}<span>Verified Business</span></span>
+              <span class="tag">Call Now</span>
+              <span class="tag">Request Quote</span>
+              <span class="tag">Priority Listing</span>
+            </div>
+            <div class="service-actions" style="margin-top:18px;">
+              <button class="btn btn-primary" onclick="alert('Demo action: Viewing BrightSpark Electrical Ltd')">View Business</button>
+              <button class="btn btn-outline" onclick="alert('Demo action: Quote requested')">Get Quote</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="list-business-sell">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">List or Sell</span>
+            <h2>Want to sell something or list a business?</h2>
+            <p>Choose the option that matches your goal. Individuals can post items for sale, while service providers can create a business listing to generate enquiries.</p>
+          </div>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <span class="label">For Individuals</span>
+            <h3>Sell an Item</h3>
+            <div class="price">Simple <small>listing flow</small></div>
+            <p>Perfect for users who want to sell furniture, appliances, electronics or other local items.</p>
+            <ul class="price-list">
+              <li>Item title and price</li>
+              <li>Image upload</li>
+              <li>Location and condition</li>
+              <li>Direct buyer enquiry</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-outline">Sell Something</a>
+            </div>
+          </div>
+
+          <div class="pricing-card highlight">
+            <span class="label">For Companies</span>
+            <h3>List a Business</h3>
+            <div class="price">Growth <small>ready</small></div>
+            <p>Ideal for local service providers who want visibility, trust signals and more inbound leads.</p>
+            <ul class="price-list">
+              <li>Business name and category</li>
+              <li>Phone, address and service area</li>
+              <li>Ratings and trust badges</li>
+              <li>Call, quote and callback actions</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-primary">List My Business</a>
+            </div>
+          </div>
+
+          <div class="pricing-card">
+            <span class="label">Future Scale</span>
+            <h3>Advanced Listings</h3>
+            <div class="price">Later <small>expansion</small></div>
+            <p>Can later support premium placements, promoted items, sponsored businesses and multi-city rollout.</p>
+            <ul class="price-list">
+              <li>Featured visibility</li>
+              <li>Promoted products</li>
+              <li>Lead generation tools</li>
+              <li>Multi-location support</li>
+            </ul>
+            <div class="hero-actions" style="margin-top:20px;">
+              <a href="#contact" class="btn btn-outline">Learn More</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">FAQ</span>
+            <h2>Common questions about the MVP direction</h2>
+          </div>
+        </div>
+
+        <div class="faq-grid">
+          <div class="faq-item open">
+            <div class="faq-question">
+              <h3>Why launch only in London first?</h3>
+              <span>−</span>
+            </div>
+            <div class="faq-answer">
+              London gives the platform a focused launch market with strong local service demand. It reduces complexity,
+              makes operations easier and helps validate the model before expanding into other cities.
+            </div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-question">
+              <h3>Why not start as a broad marketplace?</h3>
+              <span>+</span>
+            </div>
+            <div class="faq-answer">
+              A narrower service-led niche is easier to position, easier to market and less likely to compete directly with very large horizontal platforms.
+            </div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-question">
+              <h3>Can this expand to other cities later?</h3>
+              <span>+</span>
+            </div>
+            <div class="faq-answer">
+              Yes. The data structure, category logic, filters and search flow are already designed in a way that can scale city by city.
+            </div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-question">
+              <h3>How does monetisation work at launch?</h3>
+              <span>+</span>
+            </div>
+            <div class="faq-answer">
+              The easiest launch options are featured listings and lead-generation actions such as calls, quotes and messages. Google Ads placements can be added as traffic grows.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="container">
+        <div class="section-title">
+          <div>
+            <span class="label">Contact & Enquiry</span>
+            <h2>Request a callback or enquire about listing your business</h2>
+          </div>
+        </div>
+
+        <div class="contact-grid">
+          <div class="contact-note">
+            <h3>Best next step for launch</h3>
+            <p class="muted">
+              Start with a simple working London model, onboard a manageable number of service providers,
+              test traffic and conversion, then expand category depth and city coverage.
+            </p>
+            <div class="filter-tags" style="margin-top:18px;">
+              <span class="tag">London-first</span>
+              <span class="tag">Same-day services</span>
+              <span class="tag">Lead generation</span>
+              <span class="tag">Featured listings</span>
+            </div>
+            <div class="hero-actions" style="margin-top:24px;">
+              <a href="#featured-services" class="btn btn-primary">Browse Listings</a>
+            </div>
+          </div>
+
+          <form class="contact-form" id="contactForm">
+            <h3>Send an enquiry</h3>
+            <p class="muted">This demo form uses front-end validation only. Connect it to your backend or CRM later.</p>
+            <div class="contact-fields">
+              <input class="contact-input" type="text" id="nameField" placeholder="Full name" required />
+              <input class="contact-input" type="email" id="emailField" placeholder="Email address" required />
+              <input class="contact-input" type="text" id="businessField" placeholder="Business name (optional)" />
+              <select class="filter-select" id="interestField" required>
+                <option value="">Select interest</option>
+                <option value="General Enquiry">General Enquiry</option>
+                <option value="Free Listing">Free Listing</option>
+                <option value="Featured Listing">Featured Listing</option>
+                <option value="Lead Generation">Lead Generation</option>
+                <option value="Sell an Item">Sell an Item</option>
+                <option value="List a Business">List a Business</option>
+              </select>
+              <textarea class="contact-textarea" id="messageField" placeholder="Tell us what you need"></textarea>
+              <button type="submit" class="btn btn-primary">Submit Enquiry</button>
+            </div>
+            <div class="success-message" id="successMessage">Thank you. Your enquiry has been captured in this demo successfully.</div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-grid">
+      <div>
+        <div class="brand">
+          <div class="brand-mark">121</div>
+          <div class="brand-text">
+            <strong>121 Near Me</strong>
+            <span>London local services platform</span>
+          </div>
+        </div>
+        <p style="margin-top:16px; max-width:360px;">A London-first local services MVP focused on fast discovery, better trust signals and scalable lead generation.</p>
+      </div>
+      <div>
+        <h4>Platform</h4>
+        <a href="#categories">Categories</a>
+        <a href="#featured-services">Featured Services</a>
+        <a href="#map-view">Map View</a>
+        <a href="#pricing">Listing Plans</a>
+      </div>
+      <div>
+        <h4>Use Cases</h4>
+        <p>Van Hire</p>
+        <p>Removals</p>
+        <p>Cleaning</p>
+        <p>Plumbing</p>
+        <p>Electrical</p>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <p>hello@121nearme.co.uk</p>
+        <p>+44 20 0000 0000</p>
+        <p>London, United Kingdom</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const VERIFIED_TICK_ICON = `
+      <span class="verified-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="10" cy="10" r="10" fill="#3B82F6"/>
+          <path d="M5.7 10.2L8.4 12.9L14.3 7" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>`;
+
+    const services = [
+      {
+        id: 1,
+        title: 'ASAP Van London',
+        category: 'Van Hire',
+        area: 'West London',
+        address: 'Acton, West London',
+        phone: '+44 20 7123 4501',
+        rating: 4.9,
+        availability: 'Same Day',
+        featured: true,
+        verified: true,
+        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1200&q=80',
+        description: 'Fast local van hire for same-day moving, furniture pickup and urgent transport jobs across London.',
+        tags: ['Same-day van', 'Quick quote', 'London coverage'],
+        lat: 51.5088,
+        lng: -0.2764
+      },
+      {
+        id: 2,
+        title: 'MoveMate Removals',
+        category: 'Removals',
+        area: 'Central London',
+        address: 'Paddington, Central London',
+        phone: '+44 20 7123 4502',
+        rating: 4.8,
+        availability: 'Weekend',
+        featured: true,
+        verified: true,
+        image: 'https://images.unsplash.com/photo-1600518464441-9154a4dea21b?auto=format&fit=crop&w=1200&q=80',
+        description: 'Flat, office and same-day removals with trained staff and flexible scheduling for busy London routes.',
+        tags: ['House move', 'Office move', 'Featured'],
+        lat: 51.5154,
+        lng: -0.1755
+      },
+      {
+        id: 3,
+        title: 'Spark Clean Co.',
+        category: 'Cleaning',
+        area: 'Canary Wharf',
+        address: 'Canary Wharf, East London',
+        phone: '+44 20 7123 4503',
+        rating: 4.7,
+        availability: 'Weekend',
+        featured: false,
+        verified: true,
+        image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+        description: 'Reliable domestic and end-of-tenancy cleaning with flexible appointments and clear pricing.',
+        tags: ['Deep clean', 'Tenancy clean', 'Verified'],
+        lat: 51.5049,
+        lng: -0.0195
+      },
+      {
+        id: 4,
+        title: 'PrimeFlow Plumbing',
+        category: 'Plumbing',
+        area: 'Central London',
+        address: 'Holborn, Central London',
+        phone: '+44 20 7123 4504',
+        rating: 4.9,
+        availability: '24/7',
+        featured: true,
+        verified: true,
+        image: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80',
+        description: 'Emergency plumbers for leaks, repairs and urgent callouts with rapid response times.',
+        tags: ['24/7', 'Emergency', 'Highly rated'],
+        lat: 51.5171,
+        lng: -0.1116
+      },
+      {
+        id: 5,
+        title: 'VoltFix Electrical',
+        category: 'Electrical',
+        area: 'North London',
+        address: 'Camden, North London',
+        phone: '+44 20 7123 4505',
+        rating: 4.8,
+        availability: '24/7',
+        featured: false,
+        verified: true,
+        image: 'https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?auto=format&fit=crop&w=1200&q=80',
+        description: 'Certified electricians for urgent repairs, installations and local residential work.',
+        tags: ['Certified', 'Urgent jobs', 'Local electrician'],
+        lat: 51.5392,
+        lng: -0.1426
+      },
+      {
+        id: 6,
+        title: 'CityRide Transfers',
+        category: 'Taxi / Transport',
+        area: 'East London',
+        address: 'Stratford, East London',
+        phone: '+44 20 7123 4506',
+        rating: 4.6,
+        availability: 'Same Day',
+        featured: false,
+        verified: false,
+        image: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1200&q=80',
+        description: 'Airport transfers, local rides and business transport with area-specific availability.',
+        tags: ['Airport trips', 'Private transport', 'Quick booking'],
+        lat: 51.5413,
+        lng: -0.0032
+      }
+    ];
+
+    const state = {
+      keyword: '',
+      category: 'All',
+      area: 'All',
+      availability: 'All',
+      sort: 'featured',
+      selectedMapId: null
+    };
+
+    const servicesGrid = document.getElementById('servicesGrid');
+    const resultsCount = document.getElementById('resultsCount');
+    const activeTags = document.getElementById('activeTags');
+    const mapList = document.getElementById('mapList');
+    const leafletMapElement = document.getElementById('leafletMap');
+    const mobileToggle = document.getElementById('mobileToggle');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    const categoryFilter = document.getElementById('categoryFilter');
+    const areaFilter = document.getElementById('areaFilter');
+    const availabilityFilter = document.getElementById('availabilityFilter');
+    const sortFilter = document.getElementById('sortFilter');
+    const keywordInput = document.getElementById('keywordInput');
+    const locationInput = document.getElementById('locationInput');
+
+    mobileToggle.addEventListener('click', () => {
+      mobileMenu.classList.toggle('open');
+    });
+
+    document.querySelectorAll('.search-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.search-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.search-panel').forEach(panel => panel.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.panel).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.chip[data-chip]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const value = chip.dataset.chip;
+        keywordInput.value = value;
+        state.keyword = value;
+        state.category = value;
+        categoryFilter.value = value;
+        syncCategoryCards();
+        renderServices();
+        document.getElementById('featured-services').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.area-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        state.area = chip.dataset.area;
+        areaFilter.value = state.area;
+        renderServices();
+        document.getElementById('featured-services').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    document.getElementById('heroSearchBtn').addEventListener('click', () => {
+      state.keyword = keywordInput.value.trim();
+      const location = locationInput.value;
+      state.area = location === 'London' ? 'All' : location;
+      areaFilter.value = state.area;
+      renderServices();
+      document.getElementById('featured-services').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    window.addEventListener('resize', () => {
+      if (londonMap) {
+        setTimeout(() => londonMap.invalidateSize(), 120);
+      }
+    });
+
+    categoryFilter.addEventListener('change', (e) => {
+      state.category = e.target.value;
+      syncCategoryCards();
+      renderServices();
+    });
+
+    areaFilter.addEventListener('change', (e) => {
+      state.area = e.target.value;
+      renderServices();
+    });
+
+    availabilityFilter.addEventListener('change', (e) => {
+      state.availability = e.target.value;
+      renderServices();
+    });
+
+    sortFilter.addEventListener('change', (e) => {
+      state.sort = e.target.value;
+      renderServices();
+    });
+
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', () => {
+        state.category = card.dataset.category;
+        categoryFilter.value = state.category;
+        syncCategoryCards();
+        renderServices();
+        document.getElementById('featured-services').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    keywordInput.addEventListener('input', (e) => {
+      state.keyword = e.target.value.trim();
+    });
+
+    function syncCategoryCards() {
+      document.querySelectorAll('.category-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.category === state.category);
+      });
+    }
+
+    function getFilteredServices() {
+      let filtered = [...services];
+
+      if (state.keyword) {
+        const keyword = state.keyword.toLowerCase();
+        filtered = filtered.filter(service =>
+          service.title.toLowerCase().includes(keyword) ||
+          service.category.toLowerCase().includes(keyword) ||
+          service.area.toLowerCase().includes(keyword) ||
+          service.description.toLowerCase().includes(keyword) ||
+          service.tags.join(' ').toLowerCase().includes(keyword)
+        );
+      }
+
+      if (state.category !== 'All') {
+        filtered = filtered.filter(service => service.category === state.category);
+      }
+
+      if (state.area !== 'All') {
+        filtered = filtered.filter(service => service.area === state.area);
+      }
+
+      if (state.availability !== 'All') {
+        filtered = filtered.filter(service => service.availability === state.availability);
+      }
+
+      if (state.sort === 'rating') {
+        filtered.sort((a, b) => b.rating - a.rating);
+      } else if (state.sort === 'name') {
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+      } else {
+        filtered.sort((a, b) => Number(b.featured) - Number(a.featured) || b.rating - a.rating);
+      }
+
+      return filtered;
+    }
+
+    function renderTags() {
+      const tags = [];
+      if (state.keyword) tags.push(`Keyword: ${state.keyword}`);
+      if (state.category !== 'All') tags.push(`Category: ${state.category}`);
+      if (state.area !== 'All') tags.push(`Area: ${state.area}`);
+      if (state.availability !== 'All') tags.push(`Availability: ${state.availability}`);
+
+      activeTags.innerHTML = tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+    }
+
+    function renderServices() {
+      const filtered = getFilteredServices();
+      resultsCount.textContent = `${filtered.length} service${filtered.length !== 1 ? 's' : ''}`;
+      renderTags();
+
+      if (!filtered.length) {
+        servicesGrid.innerHTML = `
+          <div class="service-card" style="grid-column: 1 / -1; padding: 28px;">
+            <h3 style="margin:0 0 10px;">No services found</h3>
+            <p class="muted" style="margin:0;">Try changing the category, area or keyword to see more listings.</p>
+          </div>
+        `;
+        renderMap(filtered);
+        return;
+      }
+
+      servicesGrid.innerHTML = filtered.map(service => `
+        <article class="service-card">
+          <div class="service-card-image">
+            <img src="${service.image}" alt="${service.title}" />
+            <div class="service-overlay"></div>
+            <div class="service-badges">
+              <div>
+                ${service.featured ? '<span class="badge featured">Featured</span>' : ''}
+              </div>
+              <div>
+                ${service.verified ? `<span class="badge verified">${VERIFIED_TICK_ICON}<span>Verified</span></span>` : ''}
+              </div>
+            </div>
+            <div class="service-head">
+              <div>
+                <small>${service.category}</small>
+                <h3>${service.title}</h3>
+              </div>
+              <div class="rating-pill">★ ${service.rating.toFixed(1)}</div>
+            </div>
+          </div>
+          <div class="service-body">
+            <div class="meta-line">📍 ${service.address}</div>
+            <div class="meta-line">🕒 ${service.availability}</div>
+            <div class="meta-line">☎ ${service.phone}</div>
+            <p>${service.description}</p>
+            <div class="filter-tags" style="margin-top:16px;">
+              ${service.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            </div>
+            <div class="service-actions">
+              <a href="tel:${service.phone.replace(/\s+/g, '')}" class="btn btn-primary">Call Now</a>
+              <button class="btn btn-outline" onclick="alert('Demo action: Quote requested for ${service.title}')">Get Quote</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+
+      renderMap(filtered);
+    }
+
+        let londonMap;
+    let mapMarkers = [];
+    let isMapReady = false;
+
+    function getMarkerIcon(isActive = false) {
+      return L.divIcon({
+        className: '',
+        html: `<div class="custom-map-marker ${isActive ? 'active' : ''}"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+        popupAnchor: [0, -10]
+      });
+    }
+
+    function buildPopupCard(service) {
+      return `
+        <div class="map-popup-card">
+          <img class="map-popup-image" src="${service.image}" alt="${service.title}">
+          <div class="map-popup-body">
+            <div class="map-popup-top">
+              <h3>${service.title}</h3>
+              <span class="map-popup-rating">★ ${service.rating.toFixed(1)}</span>
+            </div>
+            <p class="map-popup-line">📍 ${service.address}</p>
+            <p class="map-popup-line">🧰 ${service.category} • ${service.area}</p>
+            <p class="map-popup-line">🕒 ${service.availability}</p>
+            <p class="map-popup-line">☎ ${service.phone}</p>
+            <p class="map-popup-line">${service.description}</p>
+            <div class="map-popup-tags">
+              ${service.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+              ${service.featured ? '<span class="tag">Featured</span>' : ''}
+              ${service.verified ? `<span class="tag verified-tag">${VERIFIED_TICK_ICON}<span>Verified</span></span>` : ''}
+            </div>
+            <div class="map-popup-actions">
+              <a href="tel:${service.phone.replace(/\s+/g, '')}" class="btn btn-primary">Call Now</a>
+              <button class="btn btn-outline" onclick="alert('Quote requested from ${service.title}')">Get Quote</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function initLeafletMap() {
+      if (isMapReady || !leafletMapElement || typeof L === 'undefined') return;
+      londonMap = L.map('leafletMap', {
+        zoomControl: true,
+        scrollWheelZoom: true
+      }).setView([51.5074, -0.1278], 11);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(londonMap);
+
+      isMapReady = true;
+    }
+
+    function resetMapView(filteredServices) {
+      if (!londonMap || !filteredServices.length) return;
+      const bounds = L.latLngBounds(filteredServices.map(service => [service.lat, service.lng]));
+      londonMap.fitBounds(bounds.pad(0.18), { maxZoom: 13 });
+    }
+
+    function renderMap(filteredServices) {
+      initLeafletMap();
+
+      mapList.innerHTML = filteredServices.map(service => `
+        <div class="map-list-item ${state.selectedMapId === service.id ? 'active' : ''}" data-id="${service.id}">
+          <h4>${service.title}</h4>
+          <p>${service.category} • ${service.area}</p>
+          <p>${service.address}</p>
+          <p>★ ${service.rating.toFixed(1)} • ${service.availability}</p>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.map-list-item').forEach(item => {
+        item.addEventListener('click', () => selectMapService(Number(item.dataset.id), filteredServices));
+      });
+
+      if (!londonMap) return;
+
+      mapMarkers.forEach(marker => londonMap.removeLayer(marker));
+      mapMarkers = [];
+
+      if (!filteredServices.length) {
+        londonMap.setView([51.5074, -0.1278], 10);
+        return;
+      }
+
+      filteredServices.forEach(service => {
+        const marker = L.marker([service.lat, service.lng], {
+          icon: getMarkerIcon(state.selectedMapId === service.id)
+        })
+          .addTo(londonMap)
+          .bindPopup(buildPopupCard(service), {
+            maxWidth: 340,
+            className: 'service-popup'
+          });
+
+        marker.on('click', () => selectMapService(service.id, filteredServices, true, false));
+        mapMarkers.push(marker);
+      });
+
+      const initial = filteredServices.find(service => service.id === state.selectedMapId) || filteredServices[0];
+      resetMapView(filteredServices);
+      selectMapService(initial.id, filteredServices, false);
+    }
+
+    function selectMapService(id, filteredServices, updateState = true, flyTo = true) {
+      const service = filteredServices.find(item => item.id === id);
+      if (!service || !londonMap) return;
+      if (updateState) state.selectedMapId = id;
+
+      mapMarkers.forEach((marker, index) => {
+        const markerService = filteredServices[index];
+        marker.setIcon(getMarkerIcon(markerService?.id === id));
+        if (markerService?.id === id) {
+          if (flyTo) {
+            londonMap.flyTo([service.lat, service.lng], Math.max(londonMap.getZoom(), 13), {
+              duration: 0.75
+            });
+          }
+          marker.openPopup();
+        } else {
+          marker.closePopup();
+        }
+      });
+
+      document.querySelectorAll('.map-list-item').forEach(item => {
+        item.classList.toggle('active', Number(item.dataset.id) === id);
+      });
+    }
+
+    document.querySelectorAll('.faq-item').forEach(item => {
+      item.querySelector('.faq-question').addEventListener('click', () => {
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(faq => {
+          faq.classList.remove('open');
+          faq.querySelector('.faq-question span').textContent = '+';
+        });
+        if (!isOpen) {
+          item.classList.add('open');
+          item.querySelector('.faq-question span').textContent = '−';
+        }
+      });
+    });
+
+    document.getElementById('contactForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      document.getElementById('successMessage').classList.add('show');
+      e.target.reset();
+      setTimeout(() => {
+        document.getElementById('successMessage').classList.remove('show');
+      }, 4000);
+    });
+
+    syncCategoryCards();
+    renderServices();
+  </script>
+</body>
+</html>
